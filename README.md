@@ -1,4 +1,4 @@
-# Anand Gaushala UI
+#  Gaushala UI
 
 A static, interactive donation workspace built with Next.js 16 App Router, React 19, Tailwind CSS 4, and shadcn's Base UI components. All records are fictional and stored in this browser. There is no backend, authentication, real payment processing, or messaging integration.
 

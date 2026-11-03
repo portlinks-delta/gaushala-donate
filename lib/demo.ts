@@ -127,7 +127,7 @@ export function seedState(): DemoState {
       slug: "a-little-care-a-better-life",
       title: "A little care. A better life.",
       description:
-        "Help us give our cows the care they deserve. Your contribution brings fresh fodder, a safe shelter, and a healthier tomorrow to the gentle souls at Anand Gaushala.",
+        "Help us give our cows the care they deserve. Your contribution brings fresh fodder, a safe shelter, and a healthier tomorrow to the gentle souls at  Gaushala.",
       target: 500000,
       sevaIds: ["s1", "s2", "s3"],
       amounts: [501, 1100, 2100, 5100],
@@ -201,7 +201,7 @@ export function seedState(): DemoState {
     ).toISOString(),
     status: i % 13 === 0 ? "failed" : i % 17 === 0 ? "pending" : "success",
     receiptNumber: `AG-2026-${String(i + 1).padStart(4, "0")}`,
-    organization: "Anand Gaushala",
+    organization: " Gaushala",
     organizationAddress: "Vrindavan, Uttar Pradesh, India",
     receiptFooter: "Thank you for making compassionate care possible.",
   }));
@@ -251,7 +251,7 @@ export function seedState(): DemoState {
       banks: [
         {
           id: "b1",
-          name: "Anand Gaushala Trust",
+          name: " Gaushala Trust",
           detail: "HDFC Bank · •••• 4821 · HDFC0001234",
           active: true,
         },
@@ -298,7 +298,7 @@ export function seedState(): DemoState {
       ],
     },
     receipts: {
-      organization: "Anand Gaushala",
+      organization: " Gaushala",
       address: "Vrindavan, Uttar Pradesh, India",
       prefix: "AG",
       footer: "Thank you for making compassionate care possible.",

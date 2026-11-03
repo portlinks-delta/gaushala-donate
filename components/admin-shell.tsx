@@ -118,7 +118,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </div>
           <div>
             <p className="text-lg font-semibold tracking-tight">
-              anand<span className="text-primary">.</span>
+              <span className="text-primary">.</span>
             </p>
             <p className="text-[10px] uppercase tracking-[.21em] text-muted-foreground">
               Gaushala foundation
@@ -130,7 +130,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <Sprout className="size-4" />
           </div>
           <div className="flex-1">
-            <p className="text-xs font-semibold">Anand Gaushala</p>
+            <p className="text-xs font-semibold"> Gaushala</p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
               Vrindavan, India
             </p>
@@ -202,7 +202,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               AS
             </div>
             <div>
-              <p className="text-xs font-semibold">Anand Sharma</p>
+              <p className="text-xs font-semibold"> Sharma</p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">
                 Gaushala administrator
               </p>
@@ -279,7 +279,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           )}
         </main>
         <footer className="flex flex-wrap justify-between gap-2 px-5 pb-6 text-[10px] text-muted-foreground sm:px-8">
-          <span>© 2026 Anand Gaushala. Made for a kinder tomorrow.</span>
+          <span>© 2026  Gaushala. Made for a kinder tomorrow.</span>
           <span>Local demo · Use sample personal details only</span>
         </footer>
       </div>

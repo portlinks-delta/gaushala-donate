@@ -130,7 +130,7 @@ export function exportDonations(donations: Donation[]) {
   ]
     .map((row) => row.map(cell).join(","))
     .join("\r\n");
-  downloadFile("anand-donations.csv", "\uFEFF" + csv, "text/csv;charset=utf-8");
+  downloadFile("-donations.csv", "\uFEFF" + csv, "text/csv;charset=utf-8");
 }
 export function Overview() {
   const { state } = useDemo();
@@ -195,7 +195,7 @@ export function Overview() {
     <>
       <PageHeading
         title="A little care goes a long way."
-        description="Welcome back, Anand. Here’s the difference your community is making."
+        description="Welcome back, . Here’s the difference your community is making."
         action={<CreatePageButton />}
       />
       <div className="mb-7 flex flex-wrap items-center justify-between gap-3">

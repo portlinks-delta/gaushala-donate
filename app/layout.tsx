@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Anand · A little care, a better life",
+  title: " · A little care, a better life",
   description:
-    "A thoughtful space for giving. Anand Gaushala donation workspace and public donation demo.",
+    "A thoughtful space for giving.  Gaushala donation workspace and public donation demo.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

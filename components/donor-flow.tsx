@@ -71,7 +71,7 @@ export function DonorShell({ children }: { children: ReactNode }) {
               <Flower2 className="size-6" strokeWidth={1.6} />
             </div>
             <div>
-              <p className="text-lg font-semibold tracking-tight">anand.</p>
+              <p className="text-lg font-semibold tracking-tight">.</p>
               <p className="text-[9px] uppercase tracking-[.18em] text-muted-foreground">
                 Gaushala foundation
               </p>
@@ -96,7 +96,7 @@ export function DonorShell({ children }: { children: ReactNode }) {
       </main>
       <footer className="mx-auto mt-6 flex max-w-6xl flex-wrap justify-between gap-3 border-t px-5 py-7 text-[10px] text-muted-foreground print:hidden sm:px-8">
         <span>
-          © 2026 Anand Gaushala · A little kindness changes everything.
+          © 2026  Gaushala · A little kindness changes everything.
         </span>
         <span>Local demo · No actual payments · Use sample details</span>
       </footer>
@@ -296,7 +296,7 @@ export function DonorFlow({
     return (
       <>
         <div className="mb-6 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-          <span>Anand Gaushala</span>
+          <span> Gaushala</span>
           <ChevronRight className="size-3" />
           <span>Give with a purpose</span>
         </div>
