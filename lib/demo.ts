@@ -7,6 +7,7 @@ export type Master = {
   active: boolean;
   parentId?: string;
   image?: string;
+  bankId?: string;
 };
 export type Campaign = {
   id: string;
@@ -21,6 +22,8 @@ export type Campaign = {
   status: "draft" | "published";
   banner: string;
   createdAt: string;
+  openingBalance?: number;
+  defaultSevaId?: string;
 };
 export type DonorDraft = {
   attemptId: string;
@@ -56,6 +59,11 @@ export type Donation = {
   organization: string;
   organizationAddress?: string;
   receiptFooter: string;
+  paymentMethod?: "online" | "cash" | "upi";
+  paymentReference?: string;
+  bankId?: string;
+  bankName?: string;
+  bankDetail?: string;
 };
 export type ReceiptSettings = {
   organization: string;
@@ -76,7 +84,8 @@ export const money = (amount: number) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 export const dateLabel = (date: string) =>
   new Intl.DateTimeFormat("en-IN", {
@@ -110,7 +119,7 @@ export const emptyDraft = (): DonorDraft => ({
   wantsTax: false,
   pan: "",
   occasionId: "",
-  occasionDate: "",
+  occasionDate: dateKey(new Date().toISOString()),
   message: "",
 });
 export const validDetails = (draft: DonorDraft) =>
@@ -189,7 +198,7 @@ export function seedState(): DemoState {
     amount: [501, 1100, 2100, 5100, 11000, 2500][i % 6],
     name: names[i % names.length],
     email: `donor${i + 1}@example.com`,
-    mobile: "9876543210",
+    mobile: `98765432${String(i % names.length).padStart(2, "0")}`,
     address: "",
     wantsTax: false,
     pan: "",
@@ -328,7 +337,7 @@ export function downloadReceipt(donation: Donation) {
     );
   downloadFile(
     `${donation.receiptNumber}.html`,
-    `<!doctype html><html lang="en"><meta charset="utf-8"><title>Demo receipt ${escape(donation.receiptNumber)}</title><style>body{font:16px system-ui;max-width:680px;margin:60px auto;padding:24px;color:#173f32}h1{font-size:32px}dl{line-height:2}dt{float:left;clear:left;width:160px}dd{margin-left:170px}hr{border:0;border-top:1px solid #ddd}</style><h1>${escape(donation.organization)}</h1><p>${escape(donation.organizationAddress || "")}</p><p>DEMO RECEIPT · No actual payment was collected</p><hr><dl><dt>Receipt</dt><dd>${escape(donation.receiptNumber)}</dd><dt>Donor</dt><dd>${escape(donation.name)}</dd><dt>Date</dt><dd>${dateLabel(donation.date)}</dd><dt>Donation</dt><dd>${money(donation.amount)}</dd><dt>Email</dt><dd>${escape(donation.email)}</dd></dl><hr><p>${escape(donation.receiptFooter)}</p><p>This is a browser demo, not a valid tax receipt.</p></html>`,
+    `<!doctype html><html lang="en"><meta charset="utf-8"><title>Demo receipt ${escape(donation.receiptNumber)}</title><style>body{font:16px system-ui;max-width:680px;margin:60px auto;padding:24px;color:#173f32}h1{font-size:32px}dl{line-height:2}dt{float:left;clear:left;width:160px}dd{margin-left:170px}hr{border:0;border-top:1px solid #ddd}</style><h1>${escape(donation.organization)}</h1><p>${escape(donation.organizationAddress || "")}</p><p>DEMO RECEIPT · No actual payment was collected</p><hr><dl><dt>Receipt</dt><dd>${escape(donation.receiptNumber)}</dd><dt>Donor</dt><dd>${escape(donation.name)}</dd><dt>Date</dt><dd>${dateLabel(donation.date)}</dd><dt>Donation</dt><dd>${money(donation.amount)}</dd><dt>Email</dt><dd>${escape(donation.email)}</dd><dt>Mobile</dt><dd>${escape(donation.mobile)}</dd><dt>Payment method</dt><dd>${escape(donation.paymentMethod || "online")}</dd>${donation.paymentReference ? `<dt>Reference</dt><dd>${escape(donation.paymentReference)}</dd>` : ""}${donation.bankName ? `<dt>Bank account</dt><dd>${escape(donation.bankName)} · ${escape(donation.bankDetail || "")}</dd>` : ""}</dl><hr><p>${escape(donation.receiptFooter)}</p><p>This is a browser demo, not a valid tax receipt.</p></html>`,
     "text/html;charset=utf-8",
   );
 }

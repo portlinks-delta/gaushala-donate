@@ -15,11 +15,15 @@ Open the Local URL printed by Next.js. `/` opens the admin dashboard. A sample p
 
 - Dashboard: successful donation totals, unique donors, active campaigns, donation bars, campaign cards, and recent contributions.
 - Donation pages: search, draft/published filtering, create/edit forms, share-link copying, live card preview, and public preview.
-- Masters: categories, subcategories linked to categories, bank accounts, occasions, receipt settings, and banner uploads (PNG/JPG/WebP, at most 1 MB).
+- Masters: categories and subcategories with inherited bank mappings, bank accounts, donors and highest-donor reports, manual Cash/UPI donations with demo receipts, occasions, receipt settings, and banner uploads (PNG/JPG/WebP, at most 1 MB).
 - Reports: date/campaign/seva/status filters, pagination, campaign performance, and matching CSV export.
 - Donor journey: campaign landing, seva/amount, donor details, optional PAN/occasion, review, simulated payment with failure/retry, confirmation, and downloadable/printable demo receipt.
 
 Published campaigns need an active bank account and at least one active seva in an active category. Drafts can be previewed but cannot accept demo payments. Required donor fields and requested PAN details are validated before payment.
+
+Campaigns support a previously collected opening balance and configurable default seva. Public progress adds the opening balance to completed recorded donations; donor and donation reports exclude the opening balance. The default seva falls back to the first active option. New occasion dates use today in Asia/Kolkata, and contribution amounts display Indian currency words.
+
+Bank selection uses an active subcategory mapping, then an active category mapping, then the page default. New donations snapshot bank details and receipt settings. Donor grouping uses normalized phone numbers first, then email, and never names alone. Manual donations require a donor contact and explicit payment confirmation, share the existing receipt numbering, and prevent repeated submission of the same entry. These admin actions remain browser-local: this demo has no authentication or production payment verification.
 
 ## Persistence and demo behaviour
 
@@ -32,6 +36,7 @@ Admin pages share a route-group layout, while donor pages use a separate layout.
 ## Validation
 
 ```bash
+node scripts/donation-check.mjs
 npx tsc --noEmit
 npm run build
 ```

@@ -142,8 +142,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </p>
         <nav className="mt-3 space-y-1">
           {nav.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
+            <div key={href}>
+              <Link
               href={href}
               prefetch
               aria-current={active?.href === href ? "page" : undefined}
@@ -160,7 +160,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
               {active?.href === href && (
                 <span className="ml-auto size-1.5 rounded-full bg-[#f4c576]" />
               )}
-            </Link>
+              </Link>
+              {href === "/admin/masters" && pathname.startsWith(href) && (
+                <Link
+                  href="/admin/masters?tab=donors"
+                  onClick={() => setMobile(false)}
+                  className="ml-9 flex rounded-lg px-3 py-2.5 text-sm text-primary hover:bg-muted"
+                >
+                  Donors
+                </Link>
+              )}
+            </div>
           ))}
         </nav>
         <div className="mt-auto pb-5 pt-8">

@@ -35,8 +35,8 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   dateLabel,
+  dateKey,
   downloadReceipt,
-  emptyDraft,
   money,
   validAdditional,
   validDetails,
@@ -44,6 +44,7 @@ import {
   type DonorDraft,
 } from "@/lib/demo";
 import { cn } from "@/lib/utils";
+import { activeSevas, amountInWords, bankSnapshot, campaignDraft, campaignRaised, defaultSeva, receiptNumber, resolveBank } from "@/lib/donations";
 
 const steps = ["seva", "details", "additional", "review", "payment", "success"];
 const stepLabels = [
@@ -62,7 +63,7 @@ export function DonorShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#faf9f5]">
       <header className="print:hidden">
-        <div className="mx-auto flex h-20 max-w-6xl items-center justify-between border-b px-5 sm:px-8">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between border-b px-5 sm:px-8">
           <Link
             href={campaign ? `/donate/${campaign.slug}` : "/"}
             className="flex items-center gap-2.5"
@@ -91,7 +92,7 @@ export function DonorShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto min-h-[calc(100vh-200px)] max-w-6xl px-5 py-7 sm:px-8 sm:py-10">
+      <main className="mx-auto min-h-[calc(100vh-200px)] max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
         {children}
       </main>
       <footer className="mx-auto mt-6 flex max-w-6xl flex-wrap justify-between gap-3 border-t px-5 py-7 text-[10px] text-muted-foreground print:hidden sm:px-8">
@@ -167,35 +168,40 @@ export function DonorFlow({
         demo.
       </Recovery>
     );
-  const draft = state.drafts[campaign.id];
-  const availableSevas = state.masters.subcategories.filter(
-    (s) =>
-      campaign.sevaIds.includes(s.id) &&
-      s.active &&
-      state.masters.categories.some((c) => c.id === s.parentId && c.active),
-  );
+  const savedDraft = state.drafts[campaign.id];
+  const availableSevas = activeSevas(state, campaign);
+  const draft = savedDraft ? {
+    ...savedDraft,
+    sevaId: availableSevas.some((seva) => seva.id === savedDraft.sevaId) ? savedDraft.sevaId : defaultSeva(state, campaign),
+  } : undefined;
   const validSeva =
     !!draft &&
     availableSevas.some((s) => s.id === draft.sevaId) &&
     Number.isFinite(draft.amount) &&
     draft.amount > 0 &&
     (campaign.customAmount || campaign.amounts.includes(draft.amount));
-  const availableBank = state.masters.banks.some(
-    (b) => b.id === campaign.bankId && b.active,
-  );
+  const selectedBank = resolveBank(state, campaign, draft?.sevaId || defaultSeva(state, campaign));
+  const availableBank = !!selectedBank;
   const writable =
     campaign.status === "published" &&
     availableBank &&
     availableSevas.length > 0;
   const saveDraft = (patch: Partial<DonorDraft>) => {
     setError("");
-    update((s) => ({
-      ...s,
-      drafts: {
-        ...s.drafts,
-        [campaign.id]: { ...(s.drafts[campaign.id] || emptyDraft()), ...patch },
-      },
-    }));
+    update((s) => {
+      const current = s.drafts[campaign.id] || campaignDraft(s, campaign);
+      return {
+        ...s,
+        drafts: {
+          ...s.drafts,
+          [campaign.id]: {
+            ...current,
+            sevaId: activeSevas(s, campaign).some((seva) => seva.id === current.sevaId) ? current.sevaId : defaultSeva(s, campaign),
+            ...patch,
+          },
+        },
+      };
+    });
   };
   const begin = () => {
     if (
@@ -206,7 +212,7 @@ export function DonorFlow({
     )
       update((s) => ({
         ...s,
-        drafts: { ...s.drafts, [campaign.id]: emptyDraft() },
+        drafts: { ...s.drafts, [campaign.id]: campaignDraft(s, campaign) },
       }));
     router.push(`/donate/${slug}/seva`);
   };
@@ -242,6 +248,8 @@ export function DonorFlow({
             ...draft,
             id: draft.attemptId,
             campaignId: campaign.id,
+            paymentMethod: "online",
+            ...bankSnapshot(s, campaign, draft.sevaId),
             date: new Date().toISOString(),
             status: "failed",
             receiptNumber: "—",
@@ -263,16 +271,15 @@ export function DonorFlow({
         )
       )
         return s;
-      const sequence =
-        s.donations.filter((d) => d.status === "success").length + 1;
-      const receiptNumber = `${s.receipts.prefix}-${new Date().getFullYear()}-${String(sequence).padStart(4, "0")}-${draft.attemptId.slice(0, 4).toUpperCase()}`;
       const donation: Donation = {
         ...draft,
         id: draft.attemptId,
         campaignId: campaign.id,
+        paymentMethod: "online",
+        ...bankSnapshot(s, campaign, draft.sevaId),
         date: new Date().toISOString(),
         status: "success",
-        receiptNumber,
+        receiptNumber: receiptNumber(s, draft.attemptId),
         organization: s.receipts.organization,
         organizationAddress: s.receipts.address,
         receiptFooter: s.receipts.footer,
@@ -292,7 +299,7 @@ export function DonorFlow({
     const paid = state.donations.filter(
       (d) => d.campaignId === campaign.id && d.status === "success",
     );
-    const raised = paid.reduce((s, d) => s + d.amount, 0);
+    const raised = campaignRaised(state, campaign);
     return (
       <>
         <div className="mb-6 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
@@ -305,7 +312,7 @@ export function DonorFlow({
             Draft preview · This page is not accepting donations yet.
           </div>
         )}
-        <div className="grid items-start gap-8 lg:grid-cols-[1.45fr_1fr]">
+        <div className="grid items-start gap-5 lg:grid-cols-[1.45fr_1fr]">
           <div>
             <div className="relative overflow-hidden rounded-2xl">
               <CampaignArt
@@ -314,7 +321,7 @@ export function DonorFlow({
                   state.masters.banners.find((b) => b.id === campaign.banner)
                     ?.image
                 }
-                className="h-[270px] sm:h-[380px]"
+                className="h-[220px] sm:h-[310px]"
               />
               <span className="absolute left-5 top-5">
                 <Badge tone="green">
@@ -323,14 +330,14 @@ export function DonorFlow({
                 </Badge>
               </span>
             </div>
-            <div className="mt-7">
+            <div className="mt-5">
               <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-primary">
                 Rooted in kindness
               </p>
               <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-[-.04em] sm:text-[42px]">
                 {campaign.title}
               </h1>
-              <p className="mt-5 text-sm leading-7 text-muted-foreground">
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 {campaign.description}
               </p>
               <h2 className="mb-4 mt-8 text-lg font-semibold tracking-tight">
@@ -356,7 +363,7 @@ export function DonorFlow({
             </div>
           </div>
           <div className="space-y-4 lg:sticky lg:top-8">
-            <Card className="p-6 sm:p-7">
+            <Card className="p-5 sm:p-6">
               <span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-primary">
                 <Heart className="size-3.5" />A kinder tomorrow starts here
               </span>
@@ -504,6 +511,7 @@ export function DonorFlow({
                 {money(completed.amount)}
               </p>
             </div>
+            {completed.bankName && <div className="col-span-2"><p className="text-muted-foreground">Bank account</p><p className="mt-1">{completed.bankName} · {completed.bankDetail}</p></div>}
           </div>
           <div className="my-6 border-t border-dashed" />
           <p className="text-center text-sm text-muted-foreground">
@@ -608,7 +616,7 @@ export function DonorFlow({
         </Link>
       </Card>
     );
-  const d = draft;
+  const d = draft || campaignDraft(state, campaign);
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (step === "seva" && !validSeva)
@@ -632,7 +640,7 @@ export function DonorFlow({
         <ArrowLeft className="size-3.5" />
         {campaign.title}
       </Link>
-      <div className="mx-auto mb-8 flex max-w-2xl items-center justify-between gap-1">
+      <div className="mx-auto mb-5 flex max-w-2xl items-center justify-between gap-1">
         {stepLabels.slice(0, 5).map((label, i) => (
           <div key={label} className="flex flex-1 items-center gap-1">
             <div className="flex flex-col items-center gap-2">
@@ -669,7 +677,7 @@ export function DonorFlow({
         ))}
       </div>
       <div className="mx-auto grid max-w-4xl items-start gap-6 lg:grid-cols-[1fr_280px]">
-        <Card className="p-5 sm:p-8">
+        <Card className="p-4 sm:p-5">
           <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-primary">
             Step {index + 1} of 5
           </p>
@@ -684,7 +692,7 @@ export function DonorFlow({
               ][index]
             }
           </h1>
-          <p className="mb-7 mt-2 text-xs leading-relaxed text-muted-foreground">
+          <p className="mb-4 mt-2 text-sm leading-relaxed text-muted-foreground">
             {
               [
                 "Every seva makes a difference. Choose one close to your heart.",
@@ -695,21 +703,21 @@ export function DonorFlow({
               ][index]
             }
           </p>
-          <form onSubmit={submit} className="space-y-5">
+          <form onSubmit={submit} className="space-y-3">
             {step === "seva" && (
               <>
                 <fieldset>
                   <legend className="mb-3 text-sm font-medium">
                     Choose a seva *
                   </legend>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {availableSevas.map((s, i) => {
                       const Icon = [Sprout, Heart, ShieldCheck][i % 3];
                       return (
                         <label
                           key={s.id}
                           className={cn(
-                            "flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition",
+                            "flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-3 transition",
                             d?.sevaId === s.id
                               ? "border-primary bg-primary/5"
                               : "hover:border-primary/40",
@@ -719,10 +727,10 @@ export function DonorFlow({
                             <Icon className="size-4" />
                           </span>
                           <span className="flex-1">
-                            <span className="text-xs font-medium">
+                            <span className="text-sm font-medium">
                               {s.name}
                             </span>
-                            <span className="mt-1 block text-[10px] text-muted-foreground">
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
                               {s.detail}
                             </span>
                           </span>
@@ -765,8 +773,8 @@ export function DonorFlow({
                     <Input
                       aria-label="Custom donation amount"
                       type="number"
-                      min="1"
-                      step="1"
+                      min="0.01"
+                      step="0.01"
                       placeholder="Enter an amount"
                       value={d?.amount || ""}
                       onChange={(e) =>
@@ -775,6 +783,7 @@ export function DonorFlow({
                     />
                   </Field>
                 )}
+                {amountInWords(d.amount) && <p aria-live="polite" className="text-sm text-primary">{amountInWords(d.amount)}</p>}
               </>
             )}
             {step === "details" && d && (
@@ -874,7 +883,7 @@ export function DonorFlow({
                     onChange={(e) =>
                       saveDraft({
                         occasionId: e.target.value,
-                        occasionDate: e.target.value ? d.occasionDate : "",
+                        occasionDate: d.occasionDate || dateKey(new Date().toISOString()),
                       })
                     }
                   >
@@ -985,6 +994,7 @@ export function DonorFlow({
                   <p className="mt-2 text-xs text-muted-foreground">
                     For {campaign.title}
                   </p>
+                  {selectedBank && <div className="mt-3 border-t pt-3 text-sm"><p className="font-medium">{selectedBank.name}</p><p className="mt-1 text-muted-foreground">{selectedBank.detail}</p></div>}
                 </div>
                 {failed && (
                   <div

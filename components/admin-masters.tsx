@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, FileText, Pencil, Plus, Search } from "lucide-react";
 import { useDemo } from "@/components/demo-provider";
@@ -20,12 +20,14 @@ import {
 } from "@/components/ui/kit";
 import { Button } from "@/components/ui/button";
 import { CampaignArt } from "@/components/campaign-art";
+import { Donors } from "@/components/admin-donors";
 import { uid, type Master, type MasterKind } from "@/lib/demo";
 
 const tabs = [
   { id: "categories", label: "Categories" },
   { id: "subcategories", label: "Subcategories" },
   { id: "banks", label: "Bank accounts" },
+  { id: "donors", label: "Donors" },
   { id: "occasions", label: "Occasions" },
   { id: "receipts", label: "Receipt settings" },
   { id: "banners", label: "Donation banners" },
@@ -53,7 +55,12 @@ export function Masters() {
   const [uploading, setUploading] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState(false);
   const [receipts, setReceipts] = useState(state.receipts);
-  const kind = tab === "receipts" ? "categories" : (tab as MasterKind);
+  const requestedTab = params.get("tab");
+  useEffect(() => {
+    setTab(tabs.some((item) => item.id === requestedTab) ? requestedTab! : "categories");
+    setSearch("");
+  }, [requestedTab]);
+  const kind = tab === "receipts" || tab === "donors" ? "categories" : (tab as MasterKind);
   const records = state.masters[kind].filter((m) =>
     `${m.name} ${m.detail}`.toLowerCase().includes(search.toLowerCase()),
   );
@@ -83,6 +90,8 @@ export function Masters() {
     if (!editing?.name.trim()) return setError("Enter a name.");
     if (kind === "subcategories" && !editing.parentId)
       return setError("Choose a parent category.");
+    if (editing.bankId && !state.masters.banks.some((bank) => bank.id === editing.bankId && bank.active))
+      return setError("Choose an active bank account or use the inherited account.");
     if (
       state.masters[kind].some(
         (m) =>
@@ -154,7 +163,7 @@ export function Masters() {
             setSearch("");
           }}
         />
-        {tab === "receipts" ? (
+        {tab === "donors" ? <Donors /> : tab === "receipts" ? (
           <div className="grid gap-8 p-5 sm:p-7 xl:grid-cols-[1fr_320px]">
             <form
               onSubmit={(e) => {
@@ -284,6 +293,7 @@ export function Masters() {
                           : "DESCRIPTION"}
                     </th>
                     <th>STATUS</th>
+                    {(kind === "categories" || kind === "subcategories") && <th>BANK ACCOUNT</th>}
                     <th className="text-right">ACTIONS</th>
                   </tr>
                 </thead>
@@ -322,6 +332,9 @@ export function Masters() {
                           {m.active ? "Active" : "Inactive"}
                         </Badge>
                       </td>
+                      {(kind === "categories" || kind === "subcategories") && <td className="text-xs text-muted-foreground">
+                        {m.bankId ? (state.masters.banks.find((bank) => bank.id === m.bankId)?.name || "Unavailable account") : "Inherited / page default"}
+                      </td>}
                       <td>
                         <div className="flex justify-end gap-2">
                           <Button
@@ -419,6 +432,12 @@ export function Masters() {
                 onChange={(e) => change("detail", e.target.value)}
               />
             </Field>
+            {(kind === "categories" || kind === "subcategories") && <Field label="Bank account" hint="Subcategory mappings override the category. Otherwise the donation page’s default account is used.">
+              <Select value={editing.bankId || ""} onChange={(event) => change("bankId", event.target.value)}>
+                <option value="">{kind === "subcategories" ? "Inherit from category / page default" : "Use page default"}</option>
+                {state.masters.banks.filter((bank) => bank.active || bank.id === editing.bankId).map((bank) => <option key={bank.id} value={bank.id} disabled={!bank.active}>{bank.name} · {bank.detail}{!bank.active && " (inactive)"}</option>)}
+              </Select>
+            </Field>}
             {kind === "banners" && (
               <>
                 <CampaignArt

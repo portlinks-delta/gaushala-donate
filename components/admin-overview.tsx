@@ -26,6 +26,7 @@ import {
   type Donation,
 } from "@/lib/demo";
 import { cn } from "@/lib/utils";
+import { campaignRaised, donorSummaries } from "@/lib/donations";
 
 export function DonationTable({ donations }: { donations: Donation[] }) {
   const { state } = useDemo();
@@ -116,6 +117,10 @@ export function exportDonations(donations: Donation[]) {
       "Date",
       "Amount INR",
       "Status",
+      "Mobile",
+      "Payment method",
+      "Payment reference",
+      "Bank account",
     ],
     ...donations.map((d) => [
       d.receiptNumber,
@@ -126,6 +131,10 @@ export function exportDonations(donations: Donation[]) {
       d.date,
       d.amount,
       d.status,
+      d.mobile,
+      d.paymentMethod || "online",
+      d.paymentReference || "",
+      d.bankName || "",
     ]),
   ]
     .map((row) => row.map(cell).join(","))
@@ -145,7 +154,7 @@ export function Overview() {
   );
   const paid = filtered.filter((d) => d.status === "success");
   const total = paid.reduce((sum, d) => sum + d.amount, 0);
-  const donors = new Set(paid.map((d) => d.email.toLowerCase())).size;
+  const donors = donorSummaries(paid).length;
   const chart = useMemo(() => {
     const buckets = Array.from({ length: 12 }, (_, i) => ({
       label: `${i + 1}`,
@@ -351,9 +360,7 @@ export function Overview() {
       </div>
       <div className="mb-7 grid gap-4 md:grid-cols-3">
         {state.campaigns.slice(0, 3).map((c) => {
-          const collected = state.donations
-            .filter((d) => d.campaignId === c.id && d.status === "success")
-            .reduce((s, d) => s + d.amount, 0);
+          const collected = campaignRaised(state, c);
           const banner = state.masters.banners.find((b) => b.id === c.banner);
           return (
             <Card key={c.id} className="overflow-hidden">
@@ -464,6 +471,7 @@ export function Reports() {
           </Button>
         }
       />
+      <Link href="/admin/masters?tab=donors" className="mb-4 inline-flex text-sm font-medium text-primary underline">View donor records and highest-donor report</Link>
       <Card className="mb-5 p-5">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <label className="grid gap-2 text-xs font-medium">
@@ -566,7 +574,7 @@ export function Reports() {
           { label: "Contributions", value: donations.length },
           {
             label: "Unique successful donors",
-            value: new Set(paid.map((d) => d.email.toLowerCase())).size,
+            value: donorSummaries(paid).length,
           },
         ].map((s) => (
           <Card key={s.label} className="p-5">

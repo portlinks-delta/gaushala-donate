@@ -96,13 +96,27 @@ try {
   await page.getByRole("dialog").waitFor();
   await page.getByRole("button", { name: "Close dialog" }).click();
 
+  await page.getByRole("tab", { name: "Bank accounts", exact: true }).click();
+  await page.getByRole("button", { name: "Add bank account", exact: true }).click();
+  await page.getByLabel("Name *", { exact: true }).fill("Mapped test account");
+  await page.getByLabel("Bank details *", { exact: true }).fill("Sample bank · 1234 · SAMPLE0001");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await page.getByText("Mapped test account", { exact: true }).waitFor();
+  const mappedBank = (await state()).masters.banks.find((bank) => bank.name === "Mapped test account");
+  await page.getByRole("tab", { name: "Categories", exact: true }).click();
+  await page.getByRole("button", { name: "Edit Gau Seva", exact: true }).click();
+  await page.getByLabel("Bank account", { exact: true }).selectOption(mappedBank.id);
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+
   await goto("/admin/pages/new");
   await page.getByLabel("Campaign title *").fill("Care together test campaign");
   await page
     .getByLabel("Description *")
     .fill("A demo page created by the browser smoke test.");
   await page.getByLabel("Fundraising target (₹) *").fill("50000");
+  await page.getByLabel("Previously collected amount (₹)", { exact: true }).fill("1000");
   await page.getByLabel("Fodder seva", { exact: false }).check();
+  await page.getByLabel("Default seva", { exact: true }).selectOption("s1");
   await page.getByLabel("Status", { exact: true }).selectOption("published");
   await page
     .getByRole("button", { name: "Create donation page", exact: true })
@@ -119,6 +133,8 @@ try {
     (c) => c.title === "Care together test campaign",
   );
   assert.ok(created);
+  assert.equal(created.openingBalance, 1000);
+  assert.equal(created.defaultSevaId, "s1");
   await goto(`/admin/pages/${created.id}/edit`);
   await page.getByLabel("Campaign title *").fill("Care together updated");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
@@ -126,9 +142,16 @@ try {
   await page.getByRole("heading", { name: "Care together updated" }).waitFor();
 
   await goto(`/donate/${created.slug}`);
+  await page.getByText("₹1,000", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Make a contribution" }).click();
-  await page.getByRole("radio", { name: "Fodder seva", exact: false }).check();
+  assert.equal(await page.getByRole("radio", { name: "Fodder seva", exact: false }).isChecked(), true);
   await page.getByRole("button", { name: "₹1,100", exact: true }).click();
+  await page.getByText("One thousand one hundred rupees only", { exact: true }).waitFor();
+  await page.screenshot({ path: path.join(artifacts, "seva-desktop.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "No mobile seva overflow");
+  await page.screenshot({ path: path.join(artifacts, "seva-mobile.png"), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1050 });
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByLabel("Full name *").fill("Sample Donor");
   await page.getByLabel("Email address *").fill("sample@example.com");
@@ -148,6 +171,8 @@ try {
     .check();
   await page.getByLabel("PAN *", { exact: true }).fill("ABCDE1234F");
   await page.getByLabel("An occasion (optional)").selectOption("o1");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  assert.equal(await page.getByLabel("Occasion date *").inputValue(), today);
   await page.getByLabel("Occasion date *").fill("2026-11-03");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("heading", { name: "A moment to review" }).waitFor();
@@ -171,6 +196,7 @@ try {
     after.donations.filter((d) => d.email === "sample@example.com").length,
     1,
   );
+  assert.equal(after.donations.find((donation) => donation.email === "sample@example.com").bankId, mappedBank.id);
   const receiptDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download receipt" }).click();
   const receipt = await receiptDownload;
@@ -196,6 +222,47 @@ try {
     path: path.join(artifacts, "donation-success.png"),
     fullPage: true,
   });
+
+  // Masters submenu must work during client navigation, including query-only changes.
+  await goto("/admin/masters");
+  await page.getByRole("link", { name: "Donors", exact: true }).click();
+  await page.getByRole("button", { name: "Record donation", exact: true }).click();
+  const manual = page.getByRole("dialog");
+  await manual.getByLabel("Full name *").fill("Manual Test Donor");
+  await manual.getByLabel("Mobile number", { exact: true }).fill("9876501234");
+  await manual.getByLabel("Email address", { exact: true }).fill("manual-test@example.com");
+  await manual.getByLabel("Campaign *", { exact: true }).selectOption(created.id);
+  await manual.getByLabel("Amount (₹) *", { exact: true }).fill("250.50");
+  await manual.getByText("Two hundred fifty rupees and fifty paise only", { exact: true }).waitFor();
+  await manual.getByLabel("Payment method *", { exact: true }).selectOption("upi");
+  await manual.getByLabel("Payment reference (optional)").fill("UPI-SMOKE-1");
+  await manual.getByRole("checkbox", { name: "I confirm this payment was received." }).check();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "No mobile manual-entry overflow");
+  await page.screenshot({ path: path.join(artifacts, "manual-entry-mobile.png"), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await manual.getByRole("button", { name: "Record donation & generate receipt" }).click();
+  await manual.getByRole("button", { name: "Download receipt" }).waitFor();
+  const manualDownload = page.waitForEvent("download");
+  await manual.getByRole("button", { name: "Download receipt" }).click();
+  const manualReceipt = await manualDownload;
+  await manualReceipt.saveAs(path.join(artifacts, manualReceipt.suggestedFilename()));
+  const manualHtml = await fs.readFile(path.join(artifacts, manualReceipt.suggestedFilename()), "utf8");
+  assert.ok(manualHtml.includes("UPI-SMOKE-1"));
+  assert.ok(manualHtml.includes("Mapped test account"));
+  await manual.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByLabel("Search donors", { exact: true }).fill("manual-test@example.com");
+  await page.getByRole("button", { name: "View history", exact: true }).click();
+  await page.getByRole("dialog").getByText("UPI-SMOKE-1", { exact: false }).waitFor();
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.getByRole("tab", { name: "Highest donors", exact: true }).click();
+  await page.getByRole("columnheader", { name: "RANK", exact: true }).waitFor();
+  await page.screenshot({ path: path.join(artifacts, "donors-desktop.png"), fullPage: true });
+  await page.reload();
+  await page.getByLabel("Search donors", { exact: true }).fill("manual-test@example.com");
+  assert.equal((await state()).donations.filter((donation) => donation.email === "manual-test@example.com").length, 1);
+  await goto(`/donate/${created.slug}`);
+  await page.getByText("₹2,350.5", { exact: true }).waitFor();
 
   await goto("/donate/a-day-of-gau-seva");
   assert.equal(
@@ -272,7 +339,7 @@ try {
   );
   assert.deepEqual(errors, [], "No browser runtime errors");
   console.log(
-    "PASS: campaign create/edit/persistence, masters, reports/CSV, donor reload/PAN/occasion, failure/retry, receipt download, duplicate prevention, recovery, mobile layout, reset. Screenshots in .next/qa/artifacts.",
+    "PASS: campaigns/opening balances/default seva, bank mappings/snapshots, amount wording, occasion defaults, donor records/rankings/history, manual UPI entry/receipt/persistence, reports/CSV, online failure/retry/duplicate prevention, recovery, desktop/mobile layout, reset. Screenshots in .next/qa/artifacts.",
   );
 } finally {
   await browser.close();

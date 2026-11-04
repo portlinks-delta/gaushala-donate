@@ -29,6 +29,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { CampaignArt } from "@/components/campaign-art";
 import { dateLabel, money, slugify, uid, type Campaign } from "@/lib/demo";
 import { cn } from "@/lib/utils";
+import { activeSevas, campaignRaised } from "@/lib/donations";
 
 export function DonationPages() {
   const { state, notify } = useDemo();
@@ -74,7 +75,7 @@ export function DonationPages() {
             const donations = state.donations.filter(
               (d) => d.campaignId === c.id && d.status === "success",
             );
-            const raised = donations.reduce((s, d) => s + d.amount, 0);
+            const raised = campaignRaised(state, c);
             return (
               <Card key={c.id} className="overflow-hidden">
                 <div className="relative">
@@ -199,6 +200,8 @@ export function CampaignForm({ id }: { id?: string }) {
         status: "draft",
         banner: state.masters.banners.find((b) => b.active)?.id || "meadow",
         createdAt: "",
+        openingBalance: 0,
+        defaultSevaId: "",
       },
   );
   const [amountText, setAmountText] = useState(form.amounts.join(", "));
@@ -225,6 +228,11 @@ export function CampaignForm({ id }: { id?: string }) {
       return setError("Add a campaign title and description.");
     if (!Number.isFinite(form.target) || form.target <= 0)
       return setError("Enter a target amount greater than zero.");
+    const balance = form.openingBalance ?? 0;
+    if (!Number.isFinite(balance) || balance < 0 || !Number.isSafeInteger(Math.round(balance * 100)) || Math.abs(balance * 100 - Math.round(balance * 100)) > 0.00001)
+      return setError("Previously collected amount must be zero or greater, with at most two decimal places.");
+    if (form.defaultSevaId && !activeSevas(state, form).some((seva) => seva.id === form.defaultSevaId))
+      return setError("Choose an active default seva available on this page, or use the first available seva.");
     if (!form.sevaIds.length)
       return setError("Choose at least one seva for this page.");
     if (
@@ -382,6 +390,9 @@ export function CampaignForm({ id }: { id?: string }) {
                 onChange={(e) => change("target", Number(e.target.value))}
               />
             </Field>
+            <Field label="Previously collected amount (₹)" hint="Opening balance from earlier collections. Completed donations recorded here are added automatically; this balance creates no donor records or receipts.">
+              <Input type="number" min="0" step="0.01" value={form.openingBalance ?? 0} onChange={(event) => change("openingBalance", Number(event.target.value))} />
+            </Field>
             <fieldset>
               <legend className="mb-3 text-sm font-medium">
                 Available sevas *
@@ -424,6 +435,13 @@ export function CampaignForm({ id }: { id?: string }) {
                   ))}
               </div>
             </fieldset>
+            <Field label="Default seva" hint="Automatically selected for new donations. If unavailable, the first active seva is selected.">
+              <Select value={form.defaultSevaId || ""} onChange={(event) => change("defaultSevaId", event.target.value)}>
+                <option value="">First available active seva</option>
+                {activeSevas(state, form).map((seva) => <option key={seva.id} value={seva.id}>{seva.name}</option>)}
+                {form.defaultSevaId && !activeSevas(state, form).some((seva) => seva.id === form.defaultSevaId) && <option value={form.defaultSevaId} disabled>Previously selected seva (unavailable)</option>}
+              </Select>
+            </Field>
             <Field
               label="Suggested amounts (₹) *"
               hint="Separate amounts with commas, for example: 501, 1100, 2100."
@@ -443,7 +461,7 @@ export function CampaignForm({ id }: { id?: string }) {
               />
               Allow donors to enter a custom amount
             </label>
-            <Field label="Bank account *">
+            <Field label="Bank account *" hint="Default account when the chosen seva and its category have no active bank mapping.">
               <Select
                 required
                 value={form.bankId}
@@ -502,6 +520,7 @@ export function CampaignForm({ id }: { id?: string }) {
                   "Your story starts here. Tell your community how their kindness will help."}
               </p>
               <p className="mt-5 text-xs text-muted-foreground">
+                Collected <span className="font-semibold text-foreground">{money(campaignRaised(state, form))}</span> · {" "}
                 Goal{" "}
                 <span className="font-semibold text-foreground">
                   {money(form.target || 0)}
